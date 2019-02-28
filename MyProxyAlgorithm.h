@@ -18,7 +18,7 @@
 #define MYPROXYALGORITHM_H
 
 #include "chai3d.h"
-
+#include "MyMaterial.h"
 //------------------------------------------------------------------------------
 
 class MyProxyAlgorithm : public chai3d::cAlgorithmFingerProxy
@@ -35,8 +35,8 @@ protected:
                                           chai3d::cGenericObject* a_parent);
 
 public:
-  double m_debugValue;
-  chai3d::cVector3d m_debugVector;
+    double m_debugValue;
+    chai3d::cVector3d m_debugVector;
 };
 
 //------------------------------------------------------------------------------

@@ -15,6 +15,8 @@ using namespace chai3d;
 using namespace std;
 //------------------------------------------------------------------------------
 
+MyMaterialPtr toolMaterial;
+
 const std::string textureFiles[9] = 
 {
     "Organic_Scales_001_colour.jpg", 
@@ -151,7 +153,7 @@ int height = 0;
 // swap interval for the display context (vertical synchronization)
 int swapInterval = 1;
 
-int texIndex = 0;
+int texIndex = -1;
 
 cVector3d workspaceOffset(0.0, 0.0, 0.0);
 cVector3d cameraLookAt(0.0, 0.0, 0.0);
@@ -230,7 +232,17 @@ void ChangeToolTexture()
     material->m_roughness_map = roughnessTextures[texIndex];
     tool->m_hapticPoint->m_sphereProxy->setUseTexture(true);
 
-    tool->setRadius(0.01, 0.0);    
+    tool->setRadius(0.01, 0.01);
+
+    for (int i = 0; i < 3; ++i)
+    {
+        for (int j = 0; j < 3; ++j)
+        {
+            cMultiMesh* object = objects[i][j];
+            object->createAABBCollisionDetector(0.01);
+        }
+    }
+    toolMaterial = material;
 }
 
 //==============================================================================
@@ -254,6 +266,11 @@ int main(int argc, char* argv[])
     cout << "Keyboard Options:" << endl << endl;
     cout << "[f] - Enable/Disable full screen mode" << endl;
     cout << "[m] - Enable/Disable vertical mirroring" << endl;
+
+    cout << "[+] (On Falcon) - Apply next texture to tool" << endl;
+    cout << "[-] (On Falcon) - Apply previous texture to tool" << endl;
+    cout << "[swirl] (On Falcon) - Disable texture on tool" << endl;
+
     cout << "[q] - Exit application" << endl;
     cout << endl << endl;
 
@@ -295,7 +312,7 @@ int main(int argc, char* argv[])
     }
 
     // create display context
-    window = glfwCreateWindow(w, h, "CHAI3D", NULL, NULL);
+    window = glfwCreateWindow(w, h, "Force Shading & Haptic Textures (Teresa Van)", NULL, NULL);
     if (!window)
     {
         cout << "failed to create window" << endl;
@@ -467,7 +484,8 @@ int main(int argc, char* argv[])
     tool->m_hapticPoint->m_algorithmFingerProxy = proxyAlgorithm;
 
     tool->m_hapticPoint->m_sphereProxy->m_material->setWhite();
-
+    // tool->m_hapticPoint->m_sphereProxy->setWireMode(true);
+    
     tool->setRadius(0.001, toolRadius);
 
     tool->setHapticDevice(hapticDevice);
@@ -740,7 +758,17 @@ void updateHaptics(void)
             midPressed = false;
 
             tool->m_hapticPoint->m_sphereProxy->setUseTexture(false);
-            tool->setRadius(0.001, 0.0);    
+            tool->setRadius(0.001, 0.0);
+
+        for (int i = 0; i < 3; ++i)
+        {
+            for (int j = 0; j < 3; ++j)
+            {
+                cMultiMesh* object = objects[i][j];
+                object->createAABBCollisionDetector(0.0);
+            }
+        }
+            toolMaterial = nullptr;
         }
         else if (leftPressed && !left)
         {

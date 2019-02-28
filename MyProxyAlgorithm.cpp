@@ -19,6 +19,7 @@
 
 using namespace chai3d;
 
+extern MyMaterialPtr toolMaterial;
 //==============================================================================
 /*!
     This method uses the information computed earlier in
@@ -54,14 +55,12 @@ void MyProxyAlgorithm::updateForce()
     // get the base class to do basic force computation first
     cAlgorithmFingerProxy::updateForce();
 
-
-    m_debugValue =  m_numCollisionEvents;
+    // m_debugValue =  m_numCollisionEvents;
     // TODO: compute force shading and texture forces here
 
     if (m_numCollisionEvents > 0)
     {
         cCollisionEvent* c0 = &m_collisionRecorderConstraint0.m_nearestCollision;
-        cCollisionEvent* c1 = &m_collisionRecorderConstraint1.m_nearestCollision;
 
         // Indices for three vertices of the triangle I am touching
         int vi0 = c0->m_triangles->getVertexIndex0(c0->m_index);
@@ -94,6 +93,7 @@ void MyProxyAlgorithm::updateForce()
         if (MyMaterialPtr material = std::dynamic_pointer_cast<MyMaterial>(c0->m_object->m_material))
         {
             int type = material->Type;
+
             cVector3d F = -material->getStiffness() * (m_deviceGlobalPos - m_proxyGlobalPos);
             // Bumps = 3, Friction = 5;
             // Bumps Scene
@@ -126,13 +126,13 @@ void MyProxyAlgorithm::updateForce()
                 double roughnessFactor = 1.0;
                 if (type == 0)
                     roughnessFactor = 0.5;
-                else if (type == 2 || type == 1)
+                else if (type == 1)
                     roughnessFactor = 3.0;
                 else if (type == 4)
                     roughnessFactor = 1.5;
                 else if (type == 6)
                     roughnessFactor = 1.0;
-                else if (type == 8 || type == 7)
+                else if (type == 2 || type == 8 || type == 7)
                     roughnessFactor = 2.0;
                 
 				// cVector3d penDepth = (m_proxyGlobalPos - m_deviceGlobalPos);
@@ -145,28 +145,60 @@ void MyProxyAlgorithm::updateForce()
 				cColorf heightPixelColor;
 				cColorf roughnessPixelColor;
 
+				// normalMap->getPixelColorInterpolated(x, y, normalPixelColor);
+                
                 double x = texCoord.x() * heightMap->getWidth();
                 double y = texCoord.y() * heightMap->getHeight();
-
-				// normalMap->getPixelColorInterpolated(x, y, normalPixelColor);
 				heightMap->getPixelColor(x, y, heightPixelColor);
 
                 x = texCoord.x() * roughnessMap->getWidth();
                 y = texCoord.y() * roughnessMap->getHeight();
-
 				roughnessMap->getPixelColor(x, y, roughnessPixelColor);
 
 				// double normal = normalPixelColor.getR();// - 0.5;
-
 				double height = heightPixelColor.getR();// - 0.5;
 				double roughness = roughnessPixelColor.getR();// - 0.5;
 
-                std::cout << height << " <- height\n" << roughness << " <- roughness\n\n";
+                // std::cout << height << " <- height\n" << roughness << " <- roughness\n\n";
 
                 cVector3d perturbedNormal = surfaceNormal * (height * 2.0 + 1);// * cNormalize(m_proxyGlobalPos);
                 // perturbedNormal.normalize();
 
-                m_lastGlobalForce = F.length() * perturbedNormal;
+                cVector3d force = F.length() * perturbedNormal;
+
+                cVector3d toolForce = cVector3d(0.0, 0.0, 0.0);
+                double toolRoughness = 0;
+                if (toolMaterial)
+                {
+                    cImagePtr toolHeightMap = toolMaterial->m_height_map->m_image;
+				    cImagePtr toolRoughnessMap = toolMaterial->m_roughness_map->m_image;
+
+                    cColorf toolHeightPixelColor;
+				    cColorf toolRoughnessPixelColor;
+
+                    x = texCoord.x() * toolHeightMap->getWidth();
+                    y = texCoord.y() * toolHeightMap->getHeight();
+                    toolHeightMap->getPixelColor(x, y, toolHeightPixelColor);
+
+                    x = texCoord.x() * toolRoughnessMap->getWidth();
+                    y = texCoord.y() * toolRoughnessMap->getHeight();
+				    toolRoughnessMap->getPixelColor(x, y, toolRoughnessPixelColor);
+
+                    double toolHeight = toolHeightPixelColor.getR();// - 0.5;
+				    toolRoughness = toolRoughnessPixelColor.getR();// - 0.5;
+
+                    cVector3d toolPerturbedNormal = surfaceNormal * (toolHeight * 2.0 + 1);// * cNormalize(m_proxyGlobalPos);
+                    
+                    toolForce = F.length() * toolPerturbedNormal;
+
+                    // std::cout << "Texture on texture enabled\n";
+                }
+
+                // Add the force calculated for the ray (force) and the tool (toolForce) together and apply it to the device
+                m_lastGlobalForce = toolForce + force;
+
+                // Add the tray roughness (roughness) and tool roughness (toolRoughness) together
+                roughness += toolRoughness;
 
                 roughness *= roughnessFactor;
 
